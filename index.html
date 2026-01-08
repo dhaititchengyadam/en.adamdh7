@@ -33,6 +33,13 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
+    :root{
+      --card-max-width:920px;
+      --card-min-height:80px;
+      --card-max-height:80vh;
+      --mini-w:100px;
+      --mini-h:70px;
+    }
     *, *::before, *::after {
       -webkit-tap-highlight-color: transparent;
     }
@@ -86,7 +93,7 @@
 
     input, textarea { -webkit-user-select: text !important; user-select: text !important; }
 
-    /* Lecteur vidéo personnalisé */
+    /* Lecteur vidéo personnalisé – contrôles flottants sans fond ni bordure */
     .video-player {
       position: relative;
       width: 100%;
@@ -111,9 +118,6 @@
       pointer-events: none;
       opacity: 1;
       transition: opacity 0.4s ease;
-      z-index: 2;
-      transform: translateZ(0);
-      -webkit-transform: translateZ(0);
     }
     .video-controls.hidden {
       opacity: 0;
@@ -218,63 +222,14 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: clamp(80px, 18vw, 120px);
-      height: clamp(80px, 18vw, 120px);
+      width: clamp(80px, 20vw, 120px);
+      height: clamp(80px, 20vw, 120px);
       border: 8px solid rgba(255,255,255,0.3);
       border-top: 8px solid #fff;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       display: none;
       pointer-events: none;
-    }
-
-    /* Fake fullscreen overlay pour iOS */
-    #fakeFullscreenOverlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000;
-      z-index: 99999;
-      flex-direction: column;
-    }
-    #fsTopBar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 16px;
-      padding-top: calc(16px + env(safe-area-inset-top));
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(20px);
-      opacity: 0;
-      transition: opacity 0.4s ease;
-      z-index: 3;
-      pointer-events: none;
-    }
-    #fsBackBtn, #fsTitle {
-      pointer-events: auto;
-    }
-    #fsBackBtn {
-      background: transparent;
-      border: none;
-      color: #fff;
-      font-size: 28px;
-    }
-    #fsTitle {
-      color: #fff;
-      font-size: 18px;
-      font-weight: 700;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    #fsPlayerContainer {
-      flex: 1;
-      position: relative;
     }
   </style>
 </head>
@@ -293,14 +248,6 @@
   </div>
 
   <div id="explorerView" role="main" aria-live="polite"></div>
-
-  <div id="fakeFullscreenOverlay">
-    <div id="fsTopBar">
-      <button id="fsBackBtn"><i class="fas fa-arrow-left"></i></button>
-      <div id="fsTitle"></div>
-    </div>
-    <div id="fsPlayerContainer"></div>
-  </div>
 
   <div id="adOverlay" class="ad-overlay" aria-hidden="true" role="dialog" aria-label="Publicité">
     <div class="ad-container" role="document" aria-label="Contenu publicité">
@@ -343,45 +290,8 @@
     const loaderEl = document.getElementById('loader');
     const explorerEl = document.getElementById('explorerView');
     const headerEl = document.getElementById('siteHeader');
-    const fakeFullscreenOverlay = document.getElementById('fakeFullscreenOverlay');
-    const fsPlayerContainer = document.getElementById('fsPlayerContainer');
-    const fsTitle = document.getElementById('fsTitle');
 
     let currentContainer = null;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-    let fakeFsActive = false;
-    let fakeFsOriginalContainer = null;
-    let fakeFsSavedScroll = 0;
-
-    function enterFakeFullscreen(player, originalContainer, postName) {
-      fakeFsActive = true;
-      fakeFsOriginalContainer = originalContainer;
-      fakeFsSavedScroll = explorerEl.scrollTop;
-      document.body.style.overflow = 'hidden';
-      headerEl.style.visibility = 'hidden';
-      fsPlayerContainer.appendChild(player);
-      fsTitle.textContent = postName;
-      fakeFullscreenOverlay.style.display = 'flex';
-      showControls(); // Affiche les contrôles au démarrage
-    }
-
-    function exitFakeFullscreen() {
-      if (!fakeFsActive) return;
-      fakeFsActive = false;
-      fakeFullscreenOverlay.style.display = 'none';
-      if (fakeFsOriginalContainer) {
-        fakeFsOriginalContainer.appendChild(fsPlayerContainer.firstChild);
-      }
-      explorerEl.scrollTop = fakeFsSavedScroll;
-      document.body.style.overflow = '';
-      headerEl.style.visibility = 'visible';
-    }
-
-    document.getElementById('fsBackBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      exitFakeFullscreen();
-    });
 
     function revertToThumb(container) {
       if (!container) return;
@@ -487,7 +397,7 @@
             return;
           }
           openInNewTab(AD_REDIRECT_URL);
-          playMedia(src, thumbCon);
+          setTimeout(() => playMedia(src, thumbCon), 300);
         });
 
         frag.appendChild(card);
@@ -543,6 +453,8 @@
       return `${m}:${s.toString().padStart(2, "0")}`;
     }
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     function playMedia(src, container){
       if (!src) return;
 
@@ -552,9 +464,6 @@
 
       if (currentContainer && currentContainer !== container) {
         revertToThumb(currentContainer);
-        if (fakeFsActive) {
-          exitFakeFullscreen();
-        }
       }
       currentContainer = container;
 
@@ -596,12 +505,8 @@
           video.src = src;
           video.autoplay = true;
           video.playsInline = true;
-          video.setAttribute('playsinline', 'true');
-          video.setAttribute('webkit-playsinline', 'true');
-          video.preload = "metadata";
+          video.preload = "auto";
           video.draggable = false;
-          video.controls = false;
-          video.muted = false;
 
           const spinner = document.createElement("div");
           spinner.className = "loading-spinner";
@@ -662,15 +567,7 @@
             controls.classList.remove("hidden");
             clearTimeout(hideTimer);
             if (!video.paused && spinner.style.display === "none") {
-              hideTimer = setTimeout(() => {
-                controls.classList.add("hidden");
-                if (player.parentNode.id === 'fsPlayerContainer') {
-                  document.getElementById('fsTopBar').style.opacity = '0';
-                }
-              }, 3000);
-            }
-            if (player.parentNode.id === 'fsPlayerContainer') {
-              document.getElementById('fsTopBar').style.opacity = '1';
+              hideTimer = setTimeout(() => controls.classList.add("hidden"), 3000);
             }
           };
 
@@ -680,9 +577,6 @@
             } else {
               controls.classList.add("hidden");
               clearTimeout(hideTimer);
-              if (player.parentNode.id === 'fsPlayerContainer') {
-                document.getElementById('fsTopBar').style.opacity = '0';
-              }
             }
           };
 
@@ -789,43 +683,43 @@
             video.paused ? video.play() : video.pause();
           });
 
-          const updateFsIcon = () => {
-            const inFs = isIOS 
-              ? (player.parentNode.id === 'fsPlayerContainer') 
-              : !!document.fullscreenElement;
-            fsBtn.innerHTML = inFs 
-              ? '<i class="fas fa-compress"></i>' 
-              : '<i class="fas fa-expand"></i>';
-          };
-
-          if (!isIOS) {
-            document.addEventListener('fullscreenchange', updateFsIcon);
-          }
-
+          /* Fullscreen optimisé pour iOS + tous appareils */
           fsBtn.addEventListener("click", (e) => {
             e.stopPropagation();
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
 
-            if (isIOS) {
-              const isCurrentlyInFake = player.parentNode.id === 'fsPlayerContainer';
-              if (isCurrentlyInFake) {
-                exitFakeFullscreen();
-              } else {
-                const card = container.closest('.post-card');
-                const postName = card.querySelector('.post-name')?.textContent.trim() || "Video";
-                enterFakeFullscreen(player, container, postName);
-              }
-              updateFsIcon();
-            } else {
-              if (document.fullscreenElement) {
+            if (isFullscreen) {
+              if (document.exitFullscreen) {
                 document.exitFullscreen();
+              } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+              }
+            } else {
+              if (isIOS && video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen();
               } else {
                 player.requestFullscreen().catch(() => {});
-                if (screen.orientation && typeof screen.orientation.lock === "function") {
-                  screen.orientation.lock("landscape-primary").catch(() => {});
-                }
+              }
+              if (!isIOS && screen.orientation && typeof screen.orientation.lock === "function") {
+                screen.orientation.lock("landscape-primary").catch(() => {});
               }
             }
           });
+
+          /* Gestion changement fullscreen (standard + webkit pour iOS) */
+          document.addEventListener("fullscreenchange", updateFsIcon);
+          document.addEventListener("webkitfullscreenchange", updateFsIcon);
+
+          function updateFsIcon() {
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+            fsBtn.innerHTML = isFullscreen
+              ? '<i class="fas fa-compress"></i>'
+              : '<i class="fas fa-expand"></i>';
+
+            if (!isFullscreen && !isIOS && screen.orientation && typeof screen.orientation.unlock === "function") {
+              screen.orientation.unlock();
+            }
+          }
 
           let lastTap = 0;
           player.addEventListener("touchend", (e) => {
@@ -1035,7 +929,7 @@
   logo.addEventListener('pointerdown', ()=>{ handled=false; });
   logo.addEventListener('pointerup', ()=>{ handled=true; openPaypal(); });
   logo.addEventListener('click', ()=>{ if(!handled) openPaypal(); });
-  logo.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); openPaypal(); } });
+  logo.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openPaypal(); } });
 })();
   </script>
 
