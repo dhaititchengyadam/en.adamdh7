@@ -4,16 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <meta name="google-adsense-account" content="ca-pub-2373752876384997">
-  <meta name="google-site-verification" content="UItG8vIV9YM3napElbB9ZAf7QYCniXwYvImdM78xTKY" />
+  <meta name="google-adsense-account" content="ca-pub-3793142141367725">
+  <meta name="p:domain_verify" content="9fa4f006ebd120a55bb4601fc4c8abc8"/>
   <title>Adam_D'H7</title>
-
+  <meta property="og:url" content="https://adamdh7.org/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Adam_D'H7" />
+  <meta name="author" content="Adam_D'H7">
+  <meta name="publish_date" content="2026-01-08T00:00:00+00:00">
+  <meta property="article:author" content="Adam_D'H7" />
+  <meta property="article:published_time" content="2026-01-08T00:00:00+00:00" />
   <link rel="icon" href="https://adamdh7.org/asset/192.png">
-  <link rel="canonical" href="https://en.adamdh7.org/" />
+  <link rel="canonical" href="https://adamdh7.org/" />
   <meta property="og:image" content="https://adamdh7.org/asset/512.png">
   <meta property="og:image:width" content="512">
   <meta property="og:image:height" content="512">
-  <meta name="description" content="Adam_D’H7 is not a web just kidding it’s my Universe. Only crazy stuff: movies, series, poetry and texts from strangers. Anyway, welcome to Adam_D'H7 Adam_DH7 Adam DH7 Adamdh7 Adam dh7 Adam d'h7 Adam_d'h7 Adam_dh7 adam dh7 adamdh7 adamd'h7 adam_d'h7 adam_dh7">
+  <meta name="description" content="Adam_D'H7 est votre univers numérique dédié au divertissement et à la réflexion Adam_D'H7 Adam_DH7 Adam DH7 Adamdh7 Adam dh7 Adam d'h7 Adam_d'h7 Adam_dh7 adam dh7 adamdh7 adamd'h7 adam_d'h7 adam_dh7">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://adamdh7.org/asset/512.png">
@@ -94,7 +100,7 @@
 
     input, textarea { -webkit-user-select: text !important; user-select: text !important; }
 
-    /* Lecteur vidéo personnalisé – contrôles flottants sans fond ni bordure */
+    /* Lecteur vidéo personnalisé */
     .video-player {
       position: relative;
       width: 100%;
@@ -351,7 +357,8 @@
       const frag = document.createDocumentFragment();
       for (let i = 0; i < data.length; i++){
         const post = data[i];
-        if (((post.Catégorie||post.Categorie||"")).toString().toLowerCase() !== "poste") continue;
+        // Le filtrage est maintenant fait au chargement, mais on garde une sécurité au cas où
+        if (((post.Catégorie||post.Categorie||post.category||"")).toString().toLowerCase() !== "poste") continue;
 
         const card = document.createElement("div");
         card.className = "post-card";
@@ -707,7 +714,7 @@
             }
           });
 
-          /* Gestion changement fullscreen (standard + webkit pour iOS) */
+          /* Gestion changement fullscreen */
           document.addEventListener("fullscreenchange", updateFsIcon);
           document.addEventListener("webkitfullscreenchange", updateFsIcon);
 
@@ -783,6 +790,7 @@
           <i class="fab fa-youtube" aria-hidden="true"></i>
         </a>
       `;
+      // Check to prevent duplication, though innerHTML="" above clears it usually
       const exists = Array.from(document.getElementsByClassName('social-section')).length;
       if (!exists) c.appendChild(s);
     }
@@ -793,13 +801,11 @@
 
     function performFilter(val) {
       const txt = (val || "").toLowerCase();
+      // allData contient déjà UNIQUEMENT les "postes", on filtre juste sur le texte
       const filtered = allData.filter(p =>
-        ((p.Catégorie || p.Categorie || p.category || "").toString().toLowerCase() === "poste") &&
-        (
           (p.Texte||p.Bio||p.Info||"").toString().toLowerCase().includes(txt) ||
           (p.Name||"").toString().toLowerCase().includes(txt) ||
           (p.Description||p.Desc||"").toString().toLowerCase().includes(txt)
-        )
       );
       if (txt) {
         filtered.sort((a, b) => (a.Name || "").localeCompare((b.Name || ""), undefined, { numeric: true, sensitivity: 'base' }));
@@ -843,19 +849,50 @@
     document.addEventListener('DOMContentLoaded', () => {
       adjustExplorerTop();
       showLoader();
-      fetch("index.json")
-        .then(r => r.json())
-        .then(files => Promise.all(files.map(f => fetch(f).then(r => r.json()))))
-        .then(jsons => {
-          jsons.forEach(d => Array.isArray(d) ? allData.push(...d) : allData.push(d));
-          shuffle(allData);
-          displayExplorer(allData);
-          hideLoader();
-        }).catch(err => {
-          console.error("Erreur chargement JSON:", err);
-          explorerEl.innerHTML = '<div style="color:#999;padding:20px;text-align:center">Pa kapab chaje kontni (index.json).</div>';
-          hideLoader();
+
+      const jsonUrls = [
+        "https://adamdh7.org/en.json"
+      ];
+
+      // Chargement simultané des 4 fichiers
+      Promise.all(jsonUrls.map(url =>
+        fetch(url)
+          .then(res => {
+            if (!res.ok) throw new Error(`Erreur chargement ${url}`);
+            return res.json();
+          })
+          .catch(err => {
+            console.warn(err);
+            return []; // Retourne tableau vide si un fichier échoue pour ne pas tout bloquer
+          })
+      ))
+      .then(results => {
+        // 1. Combiner tout
+        let combined = [];
+        results.forEach(d => {
+          if (Array.isArray(d)) combined.push(...d);
+          else combined.push(d);
         });
+
+        // 2. Mélanger aléatoirement (Fisher-Yates) AVANT de filtrer
+        shuffle(combined);
+
+        // 3. Filtrer uniquement les "poste" pour stocker dans allData
+        // Cela évite de refiltrer à chaque recherche
+        allData = combined.filter(p => {
+          const cat = (p.Catégorie || p.Categorie || p.category || "").toString().toLowerCase();
+          return cat === "poste";
+        });
+
+        // 4. Afficher
+        displayExplorer(allData);
+        hideLoader();
+      })
+      .catch(err => {
+        console.error("Erreur critique:", err);
+        explorerEl.innerHTML = '<div style="color:#999;padding:20px;text-align:center">Erreur de chargement du contenu.</div>';
+        hideLoader();
+      });
     });
   </script>
 
